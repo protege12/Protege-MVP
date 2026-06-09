@@ -9,8 +9,12 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        background: "var(--background)",
-        foreground: "var(--foreground)",
+        "protege-orange": "#FF6723",
+        "protege-cream": "#F2EDE4",
+        "protege-dark": "#141412",
+      },
+      fontFamily: {
+        sans: ["Open Sauce One", "system-ui", "sans-serif"],
       },
     },
   },
