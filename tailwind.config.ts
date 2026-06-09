@@ -15,6 +15,7 @@ const config: Config = {
       },
       fontFamily: {
         sans: ["Open Sauce One", "system-ui", "sans-serif"],
+        // Fontsource registers the font under this exact name
       },
     },
   },
