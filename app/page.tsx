@@ -142,18 +142,13 @@ function Hero() {
       {/* Hero content */}
       <div className="relative z-10 text-center max-w-3xl mx-auto">
         <h1 className="font-black text-5xl sm:text-6xl lg:text-7xl leading-[1.05] tracking-tight text-protege-dark mb-4">
-          Indianapolis&apos; Creative
+          Find the mentor you
           <br />
-          Mentorship Marketplace.
-          <br />
-          <span className="text-protege-orange">
-            Real mentors. Real work.<br className="sm:hidden" /> Real city.
-          </span>
+          always needed.
         </h1>
         <p className="text-base sm:text-lg text-protege-dark/60 max-w-xl mx-auto mt-6 leading-relaxed">
-          Protégé connects young creatives with vetted local mentors through
-          short, structured, in-person sessions. No cold outreach. No guessing.
-          Just guidance.
+          Browse real offerings from working creatives in Indianapolis. Short,
+          structured sessions built around your actual work.
         </p>
         <div className="flex items-center justify-center gap-4 mt-10 flex-wrap">
           <a
