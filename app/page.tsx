@@ -395,7 +395,7 @@ function Pillar({ eyebrow, headline, body, visual, flip, id }: PillarProps) {
 function MentorCTA() {
   const bullets = [
     "You control the scope and price",
-    "Manual approval keeps quality high",
+    "Everyone here is vetted. Including you.",
     "No open-ended commitments",
   ];
   return (
@@ -416,8 +416,8 @@ function MentorCTA() {
           </h2>
           <p className="text-protege-dark/60 leading-relaxed text-base sm:text-lg mb-8">
             Post a specific offering. Set your own scope, format, and price. Get
-            discovered by motivated young creatives in Indianapolis who are
-            genuinely ready to learn.
+            discovered by young creatives in Indianapolis who are looking for
+            exactly what you offer.
           </p>
           <a
             href="#"
@@ -518,21 +518,21 @@ export default function Home() {
       <Pillar
         id="discover"
         eyebrow="STRUCTURE"
-        headline="Mentorship with clear expectations."
-        body="Most mentorship falls apart because nobody knows what they agreed to. Protégé mentors post specific offerings — defined scope, set duration, clear format, upfront price. You know exactly what you're getting before you commit."
+        headline="Know what you're getting."
+        body="Every offering on Protégé has a defined scope, set duration, format, and price. Posted by the mentor upfront. No ambiguity. No back-and-forth. You pick what fits and request it."
         visual={<OfferingCard />}
       />
       <Pillar
         eyebrow="DISCOVERY"
-        headline="No cold outreach required."
-        body="Finding a mentor usually means awkward DMs and hoping someone responds. On Protégé, mentors are already here and open to working with you. Browse by discipline, choose someone whose work you respect, and submit a request. That's it."
+        headline="Find someone worth learning from."
+        body="Every mentor here posted an offering on purpose. Defined scope, set price, open for requests. Browse by discipline, find someone whose work you respect, and reach out without the awkward part."
         visual={<BrowseUI />}
         flip
       />
       <Pillar
         eyebrow="LOCAL"
         headline="Indianapolis first."
-        body="Every other option is remote, national, or locked behind institutional access. Protégé is built for this city. In-person sessions, mentors who know the Indianapolis creative scene, and real relationships that outlast the platform."
+        body="Every other option is remote, national, or locked behind institutional access. Protégé is built for this city. In-person sessions, mentors embedded in the Indianapolis creative scene, and connections that don't end when the session does."
         visual={<LocalVisual />}
       />
       <MentorCTA />
