@@ -59,19 +59,19 @@ function Nav() {
 // HERO — floating cards + parallax
 // ---------------------------------------------------------------------------
 const leftCards = [
-  { color: "#E8D5C4", w: 140, h: 160, rotate: -6,  x: -60,  y: 60,  depth: 1.4 },
-  { color: "#D4C4B0", w: 120, h: 140, rotate:  4,  x: -20,  y: 220, depth: 0.8 },
-  { color: "#C9B99A", w: 160, h: 110, rotate: -3,  x: -80,  y: 370, depth: 1.8 },
-  { color: "#F0E6D8", w: 130, h: 150, rotate:  7,  x: -30,  y: 510, depth: 1.0 },
-  { color: "#E0CDB8", w: 110, h: 130, rotate: -5,  x: -70,  y: 660, depth: 1.3 },
+  { color: "#E8D5C4", w: 160, h: 180, rotate: -6,  x:  60,  y: 60,  depth: 2.1 },
+  { color: "#D4C4B0", w: 140, h: 160, rotate:  4,  x:  80,  y: 220, depth: 1.2 },
+  { color: "#C9B99A", w: 180, h: 130, rotate: -3,  x:  40,  y: 370, depth: 2.7 },
+  { color: "#F0E6D8", w: 150, h: 170, rotate:  7,  x:  70,  y: 510, depth: 1.5 },
+  { color: "#E0CDB8", w: 130, h: 150, rotate: -5,  x:  50,  y: 660, depth: 2.0 },
 ];
 
 const rightCards = [
-  { color: "#D4C4B0", w: 150, h: 130, rotate:  5,  x:  40,  y: 80,  depth: 1.2 },
-  { color: "#F0E6D8", w: 120, h: 155, rotate: -4,  x:  10,  y: 240, depth: 0.9 },
-  { color: "#E8D5C4", w: 145, h: 120, rotate:  8,  x:  60,  y: 390, depth: 1.6 },
-  { color: "#C9B99A", w: 115, h: 145, rotate: -6,  x:  20,  y: 540, depth: 1.1 },
-  { color: "#E0CDB8", w: 135, h: 115, rotate:  3,  x:  50,  y: 680, depth: 1.5 },
+  { color: "#D4C4B0", w: 170, h: 150, rotate:  5,  x:  60,  y: 80,  depth: 1.8 },
+  { color: "#F0E6D8", w: 140, h: 175, rotate: -4,  x:  80,  y: 240, depth: 1.4 },
+  { color: "#E8D5C4", w: 165, h: 140, rotate:  8,  x:  50,  y: 390, depth: 2.4 },
+  { color: "#C9B99A", w: 135, h: 165, rotate: -6,  x:  70,  y: 540, depth: 1.7 },
+  { color: "#E0CDB8", w: 155, h: 135, rotate:  3,  x:  55,  y: 680, depth: 2.3 },
 ];
 
 function Hero() {
@@ -115,7 +115,7 @@ function Hero() {
               left: c.x,
               top: c.y,
               rotate: `${c.rotate}deg`,
-              transform: `rotate(${c.rotate}deg) translate(${offset.x * c.depth * 10}px, ${offset.y * c.depth * 6}px)`,
+              transform: `rotate(${c.rotate}deg) translate(${offset.x * c.depth * 15}px, ${offset.y * c.depth * 9}px)`,
             }}
           />
         ))}
@@ -133,7 +133,7 @@ function Hero() {
               height: c.h,
               right: c.x,
               top: c.y,
-              transform: `rotate(${c.rotate}deg) translate(${offset.x * c.depth * -10}px, ${offset.y * c.depth * 6}px)`,
+              transform: `rotate(${c.rotate}deg) translate(${offset.x * c.depth * -15}px, ${offset.y * c.depth * 9}px)`,
             }}
           />
         ))}
@@ -240,8 +240,8 @@ function Stats() {
   return (
     <section ref={ref} className="relative overflow-visible bg-protege-dark py-24 px-6">
       {/* Circle divider straddling the hero/stats seam */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-protege-dark flex items-center justify-center">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-[75%] w-14 h-14 rounded-full bg-protege-dark flex items-center justify-center">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
           <path d="M6 9l6 6 6-6" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       </div>
@@ -286,7 +286,7 @@ const offerings: Offering[] = [
     duration: "60 min · 1 session",
     price: "$45",
     defaultTransform: "translate(-50%, -50%) rotate(-4deg)",
-    hoverTransform: "translate(calc(-50% - 120px), -50%) rotate(-18deg)",
+    hoverTransform: "translate(calc(-50% - 220px), -50%) rotate(0deg)",
     z: 30,
   },
   {
@@ -299,7 +299,7 @@ const offerings: Offering[] = [
     duration: "4 weeks · 4 sessions",
     price: "$120",
     defaultTransform: "translate(calc(-50% + 28px), calc(-50% + 24px)) rotate(5deg)",
-    hoverTransform: "translate(-50%, -50%) rotate(2deg)",
+    hoverTransform: "translate(calc(-50% + 0px), -50%) rotate(0deg)",
     z: 20,
   },
   {
@@ -312,7 +312,7 @@ const offerings: Offering[] = [
     duration: "45 min · 1 session",
     price: "$35",
     defaultTransform: "translate(calc(-50% + 60px), calc(-50% + 52px)) rotate(14deg)",
-    hoverTransform: "translate(calc(-50% + 120px), -50%) rotate(22deg)",
+    hoverTransform: "translate(calc(-50% + 220px), -50%) rotate(0deg)",
     z: 10,
   },
 ];
@@ -321,14 +321,14 @@ function OfferingCardStack() {
   const [hovered, setHovered] = useState(false);
   return (
     <div
-      className="relative w-[320px] h-[420px]"
+      className="relative w-[400px] h-[420px]"
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
       {offerings.map((o) => (
         <div
           key={o.initials}
-          className="absolute top-1/2 left-1/2 w-[280px] bg-white rounded-2xl p-5 flex flex-col"
+          className="absolute top-1/2 left-1/2 w-[320px] bg-white rounded-2xl p-5 flex flex-col"
           style={{
             border: "1px solid rgba(20,20,18,0.10)",
             zIndex: o.z,
