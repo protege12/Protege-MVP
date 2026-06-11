@@ -58,20 +58,21 @@ function Nav() {
 // ---------------------------------------------------------------------------
 // HERO — floating cards + parallax
 // ---------------------------------------------------------------------------
+// x = distance from edge; y = top offset. Varied to break the column pattern.
 const leftCards = [
-  { color: "#E8D5C4", w: 160, h: 180, rotate: -6,  x:  60,  y: 60,  depth: 2.1 },
-  { color: "#D4C4B0", w: 140, h: 160, rotate:  4,  x:  80,  y: 220, depth: 1.2 },
-  { color: "#C9B99A", w: 180, h: 130, rotate: -3,  x:  40,  y: 370, depth: 2.7 },
-  { color: "#F0E6D8", w: 150, h: 170, rotate:  7,  x:  70,  y: 510, depth: 1.5 },
-  { color: "#E0CDB8", w: 130, h: 150, rotate: -5,  x:  50,  y: 660, depth: 2.0 },
+  { color: "#E8D5C4", w: 155, h: 120, rotate: -7,  x:  20,  y:  40,  depth: 1.3 },
+  { color: "#C9B99A", w: 190, h: 155, rotate:  3,  x:  95,  y: 170,  depth: 2.5 },
+  { color: "#D4C4B0", w: 130, h: 160, rotate: -5,  x:  30,  y: 360,  depth: 1.0 },
+  { color: "#F0E6D8", w: 170, h: 110, rotate:  8,  x: 105,  y: 490,  depth: 2.2 },
+  { color: "#E0CDB8", w: 145, h: 175, rotate: -2,  x:  45,  y: 650,  depth: 1.7 },
 ];
 
 const rightCards = [
-  { color: "#D4C4B0", w: 170, h: 150, rotate:  5,  x:  60,  y: 80,  depth: 1.8 },
-  { color: "#F0E6D8", w: 140, h: 175, rotate: -4,  x:  80,  y: 240, depth: 1.4 },
-  { color: "#E8D5C4", w: 165, h: 140, rotate:  8,  x:  50,  y: 390, depth: 2.4 },
-  { color: "#C9B99A", w: 135, h: 165, rotate: -6,  x:  70,  y: 540, depth: 1.7 },
-  { color: "#E0CDB8", w: 155, h: 135, rotate:  3,  x:  55,  y: 680, depth: 2.3 },
+  { color: "#F0E6D8", w: 140, h: 170, rotate:  6,  x: 100,  y:  55,  depth: 2.0 },
+  { color: "#E8D5C4", w: 175, h: 125, rotate: -3,  x:  25,  y: 200,  depth: 1.4 },
+  { color: "#D4C4B0", w: 125, h: 155, rotate:  9,  x: 110,  y: 350,  depth: 2.6 },
+  { color: "#C9B99A", w: 165, h: 140, rotate: -7,  x:  40,  y: 490,  depth: 1.1 },
+  { color: "#E0CDB8", w: 145, h: 120, rotate:  4,  x:  85,  y: 660,  depth: 1.9 },
 ];
 
 function Hero() {
@@ -172,7 +173,7 @@ function Hero() {
 // ---------------------------------------------------------------------------
 // STATS — roll-up animation
 // ---------------------------------------------------------------------------
-function useCountUp(target: number, active: boolean, duration = 1400) {
+function useCountUp(target: number, active: boolean, duration = 1800) {
   const [value, setValue] = useState(0);
   useEffect(() => {
     if (!active) return;
@@ -208,7 +209,7 @@ function StatItem({
       style={{
         opacity: active ? 1 : 0,
         transform: active ? "translateY(0)" : "translateY(24px)",
-        transition: "opacity 500ms ease-out, transform 500ms ease-out",
+        transition: "opacity 700ms ease-out, transform 700ms ease-out",
         transitionDelay: `${index * 100}ms`,
       }}
     >
@@ -231,7 +232,7 @@ function Stats() {
     if (!el) return;
     const observer = new IntersectionObserver(
       ([entry]) => { if (entry.isIntersecting) { setActive(true); observer.disconnect(); } },
-      { threshold: 0.3 }
+      { threshold: 0.6 }
     );
     observer.observe(el);
     return () => observer.disconnect();
@@ -240,7 +241,7 @@ function Stats() {
   return (
     <section ref={ref} className="relative overflow-visible bg-protege-dark py-24 px-6">
       {/* Circle divider straddling the hero/stats seam */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-[75%] w-14 h-14 rounded-full bg-protege-dark flex items-center justify-center">
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 w-14 h-14 rounded-full bg-protege-dark flex items-center justify-center">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
           <path d="M6 9l6 6 6-6" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
@@ -286,7 +287,7 @@ const offerings: Offering[] = [
     duration: "60 min · 1 session",
     price: "$45",
     defaultTransform: "translate(-50%, -50%) rotate(-4deg)",
-    hoverTransform: "translate(calc(-50% - 220px), -50%) rotate(0deg)",
+    hoverTransform: "translate(calc(-50% - 260px), -50%) rotate(0deg)",
     z: 30,
   },
   {
@@ -312,7 +313,7 @@ const offerings: Offering[] = [
     duration: "45 min · 1 session",
     price: "$35",
     defaultTransform: "translate(calc(-50% + 60px), calc(-50% + 52px)) rotate(14deg)",
-    hoverTransform: "translate(calc(-50% + 220px), -50%) rotate(0deg)",
+    hoverTransform: "translate(calc(-50% + 260px), -50%) rotate(0deg)",
     z: 10,
   },
 ];
@@ -321,14 +322,14 @@ function OfferingCardStack() {
   const [hovered, setHovered] = useState(false);
   return (
     <div
-      className="relative w-[400px] h-[420px]"
+      className="relative w-[240px] h-[420px]"
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
       {offerings.map((o) => (
         <div
           key={o.initials}
-          className="absolute top-1/2 left-1/2 w-[320px] bg-white rounded-2xl p-5 flex flex-col"
+          className="absolute top-1/2 left-1/2 w-[240px] bg-white rounded-2xl p-5 flex flex-col"
           style={{
             border: "1px solid rgba(20,20,18,0.10)",
             zIndex: o.z,
