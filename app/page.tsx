@@ -144,7 +144,7 @@ function Hero() {
         <h1 className="font-black text-5xl sm:text-6xl lg:text-7xl leading-[1.05] tracking-tight text-protege-dark mb-4">
           Find the mentor you
           <br />
-          always needed.
+          <span style={{ color: "#FF6723" }}>always needed</span>.
         </h1>
         <p className="text-base sm:text-lg text-protege-dark/60 max-w-xl mx-auto mt-6 leading-relaxed">
           Browse real offerings from working creatives in Indianapolis. Short,
@@ -194,10 +194,24 @@ const stats = [
   { number: 46, suffix: "%", label: "say reaching out feels awkward" },
 ];
 
-function StatItem({ number, suffix, label, active }: typeof stats[0] & { active: boolean }) {
+function StatItem({
+  number,
+  suffix,
+  label,
+  active,
+  index,
+}: typeof stats[0] & { active: boolean; index: number }) {
   const val = useCountUp(number, active);
   return (
-    <div className="flex flex-col items-center gap-3">
+    <div
+      className="flex flex-col items-center gap-3"
+      style={{
+        opacity: active ? 1 : 0,
+        transform: active ? "translateY(0)" : "translateY(24px)",
+        transition: "opacity 500ms ease-out, transform 500ms ease-out",
+        transitionDelay: `${index * 100}ms`,
+      }}
+    >
       <span className="font-black text-7xl sm:text-8xl lg:text-9xl leading-none text-white tabular-nums">
         {val}{suffix}
       </span>
@@ -224,16 +238,19 @@ function Stats() {
   }, []);
 
   return (
-    <section ref={ref} className="bg-protege-dark py-24 px-6">
+    <section ref={ref} className="relative overflow-visible bg-protege-dark py-24 px-6">
+      {/* Circle divider straddling the hero/stats seam */}
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-protege-dark flex items-center justify-center">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+          <path d="M6 9l6 6 6-6" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </div>
       <div className="max-w-5xl mx-auto">
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-16 sm:gap-8 text-center">
-          {stats.map((s) => (
-            <StatItem key={s.label} {...s} active={active} />
+          {stats.map((s, i) => (
+            <StatItem key={s.label} {...s} active={active} index={i} />
           ))}
         </div>
-        <p className="text-center text-white/30 text-xs mt-16 tracking-wide">
-          Survey of 102 student creatives, Westfield, IN — 2026
-        </p>
       </div>
     </section>
   );
@@ -244,35 +261,117 @@ function Stats() {
 // ---------------------------------------------------------------------------
 
 // Pillar 1 — Structure
-function OfferingCard() {
-  const fields = [
-    { label: "Discipline", value: "———" },
-    { label: "Format",     value: "———" },
-    { label: "Duration",   value: "———" },
-    { label: "Price",      value: "———" },
-    { label: "Scope",      value: "———————————" },
-  ];
+interface Offering {
+  initials: string;
+  avatarBg: string;
+  name: string;
+  tag: string;
+  title: string;
+  format: string;
+  duration: string;
+  price: string;
+  defaultTransform: string;
+  hoverTransform: string;
+  z: number;
+}
+
+const offerings: Offering[] = [
+  {
+    initials: "AR",
+    avatarBg: "#FF6723",
+    name: "Alex Rivera",
+    tag: "Graphic Design",
+    title: "Portfolio Review",
+    format: "In-Person · 1-on-1",
+    duration: "60 min · 1 session",
+    price: "$45",
+    defaultTransform: "translate(-50%, -50%) rotate(-4deg)",
+    hoverTransform: "translate(calc(-50% - 120px), -50%) rotate(-18deg)",
+    z: 30,
+  },
+  {
+    initials: "MK",
+    avatarBg: "#141412",
+    name: "Maya Kim",
+    tag: "Brand Identity",
+    title: "Brand Identity Crash Course",
+    format: "In-Person · 1-on-1",
+    duration: "4 weeks · 4 sessions",
+    price: "$120",
+    defaultTransform: "translate(calc(-50% + 28px), calc(-50% + 24px)) rotate(5deg)",
+    hoverTransform: "translate(-50%, -50%) rotate(2deg)",
+    z: 20,
+  },
+  {
+    initials: "JT",
+    avatarBg: "#6B6B5E",
+    name: "Jordan Tate",
+    tag: "Photography",
+    title: "Career Direction Call",
+    format: "In-Person · 1-on-1",
+    duration: "45 min · 1 session",
+    price: "$35",
+    defaultTransform: "translate(calc(-50% + 60px), calc(-50% + 52px)) rotate(14deg)",
+    hoverTransform: "translate(calc(-50% + 120px), -50%) rotate(22deg)",
+    z: 10,
+  },
+];
+
+function OfferingCardStack() {
+  const [hovered, setHovered] = useState(false);
   return (
-    <div className="bg-protege-cream border border-protege-dark/10 rounded-2xl p-8 max-w-sm w-full shadow-sm">
-      <div className="text-xs tracking-widest text-protege-dark/40 uppercase mb-5 font-medium">
-        Offering Template
-      </div>
-      <div className="space-y-4">
-        {fields.map(({ label, value }) => (
-          <div key={label} className="flex items-center justify-between gap-4">
-            <span className="text-xs text-protege-dark/50 uppercase tracking-wider w-20 flex-shrink-0">
-              {label}
-            </span>
-            <div className="h-px flex-1 bg-protege-dark/10" />
-            <span className="text-sm text-protege-dark/25 font-medium">{value}</span>
+    <div
+      className="relative w-[320px] h-[420px]"
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+      {offerings.map((o) => (
+        <div
+          key={o.initials}
+          className="absolute top-1/2 left-1/2 w-[280px] bg-white rounded-2xl p-5 flex flex-col"
+          style={{
+            border: "1px solid rgba(20,20,18,0.10)",
+            zIndex: o.z,
+            transform: hovered ? o.hoverTransform : o.defaultTransform,
+            transition: "transform 400ms cubic-bezier(0.34, 1.56, 0.64, 1)",
+          }}
+        >
+          {/* Header: avatar + name + tag */}
+          <div className="flex items-center gap-3 mb-4">
+            <div
+              className="w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0"
+              style={{ backgroundColor: o.avatarBg }}
+            >
+              {o.initials}
+            </div>
+            <div className="flex flex-col gap-1 min-w-0">
+              <span className="text-sm font-medium text-protege-dark truncate">{o.name}</span>
+              <span
+                className="text-[11px] rounded-full px-2 py-0.5 self-start"
+                style={{ color: "#FF6723", backgroundColor: "rgba(255,103,35,0.08)" }}
+              >
+                {o.tag}
+              </span>
+            </div>
           </div>
-        ))}
-      </div>
-      <div className="mt-8 pt-6 border-t border-protege-dark/10">
-        <div className="h-8 rounded-full bg-protege-orange/15 flex items-center justify-center">
-          <span className="text-xs text-protege-orange font-medium">Submit Request</span>
+
+          {/* Title */}
+          <h3 className="font-black text-lg text-protege-dark leading-snug mb-3">
+            {o.title}
+          </h3>
+
+          {/* Format + duration */}
+          <div className="flex flex-col gap-1 text-xs text-protege-dark/50">
+            <span>{o.format}</span>
+            <span>{o.duration}</span>
+          </div>
+
+          {/* Price */}
+          <div className="mt-4 pt-4 border-t border-protege-dark/10 flex justify-end">
+            <span className="font-black text-protege-orange text-lg">{o.price}</span>
+          </div>
         </div>
-      </div>
+      ))}
     </div>
   );
 }
@@ -515,7 +614,7 @@ export default function Home() {
         eyebrow="STRUCTURE"
         headline="Know what you're getting."
         body="Every offering on Protégé has a defined scope, set duration, format, and price. Posted by the mentor upfront. No ambiguity. No back-and-forth. You pick what fits and request it."
-        visual={<OfferingCard />}
+        visual={<OfferingCardStack />}
       />
       <Pillar
         eyebrow="DISCOVERY"
