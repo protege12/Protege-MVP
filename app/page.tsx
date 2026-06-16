@@ -378,36 +378,307 @@ function OfferingCardStack() {
 }
 
 // Pillar 2 — Discovery
-function BrowseUI() {
-  const tags = ["Graphic Design", "Photography", "Filmmaking", "Illustration", "Music Production"];
+interface DisciplineSeed {
+  label: string;
+  x: number;
+  y: number;
+  rot: number;
+  active?: boolean;
+}
+
+// Hand-placed scatter inside a ~348×388 inner area (deterministic → hydration-safe).
+const DISCIPLINE_SEEDS: DisciplineSeed[] = [
+  { label: "Graphic Design",   x: 14,  y: 30,  rot: -4, active: true },
+  { label: "Photography",      x: 188, y: 18,  rot:  3, active: true },
+  { label: "Filmmaking",       x: 96,  y: 86,  rot:  5 },
+  { label: "Illustration",     x: 232, y: 92,  rot: -3 },
+  { label: "Music Production",  x: 28,  y: 132, rot:  2 },
+  { label: "Writing",          x: 210, y: 158, rot: -6 },
+  { label: "Brand Identity",   x: 70,  y: 196, rot:  4 },
+  { label: "UI/UX Design",     x: 226, y: 218, rot:  6 },
+  { label: "Animation",        x: 18,  y: 232, rot: -5 },
+  { label: "Editorial",        x: 150, y: 256, rot:  3 },
+  { label: "Motion Design",    x: 30,  y: 300, rot: -2 },
+  { label: "Portrait",         x: 240, y: 296, rot:  5 },
+  { label: "Ceramics",         x: 128, y: 330, rot: -4 },
+  { label: "Fashion",          x: 16,  y: 352, rot:  4 },
+];
+
+interface Body {
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  w: number;
+  h: number;
+  rot: number;
+  dragging: boolean;
+}
+
+const FRICTION = 0.94;
+const RESTITUTION = 0.65;
+const SLEEP_EPS = 0.05;
+const MAX_SPEED = 40;
+const DRAG_THRESHOLD = 5;
+
+function DisciplinePanel() {
+  const panelRef = useRef<HTMLDivElement | null>(null);
+  const pillRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const bodiesRef = useRef<Body[]>(
+    DISCIPLINE_SEEDS.map((s) => ({
+      x: s.x, y: s.y, vx: 0, vy: 0, w: 120, h: 34, rot: s.rot, dragging: false,
+    }))
+  );
+  const boundsRef = useRef({ w: 348, h: 388 });
+  const rafRef = useRef<number | null>(null);
+  const runningRef = useRef(false);
+  const reducedRef = useRef(false);
+  const dragRef = useRef<{
+    id: number;
+    pointerId: number;
+    offsetX: number;
+    offsetY: number;
+    startX: number;
+    startY: number;
+    lastX: number;
+    lastY: number;
+    lastT: number;
+    moved: boolean;
+  } | null>(null);
+
+  const [active, setActive] = useState<Set<number>>(
+    () => new Set(DISCIPLINE_SEEDS.flatMap((s, i) => (s.active ? [i] : [])))
+  );
+  const [draggingId, setDraggingId] = useState<number | null>(null);
+
+  // Write a body's transform to its DOM node
+  const paint = useCallback((i: number) => {
+    const el = pillRefs.current[i];
+    const b = bodiesRef.current[i];
+    if (el && b) el.style.transform = `translate3d(${b.x}px, ${b.y}px, 0)`;
+  }, []);
+
+  const step = useCallback(() => {
+    const { w: innerW, h: innerH } = boundsRef.current;
+    let awake = false;
+
+    bodiesRef.current.forEach((b, i) => {
+      if (b.dragging) {
+        awake = true;
+        paint(i);
+        return;
+      }
+      if (b.vx === 0 && b.vy === 0) return;
+
+      b.vx *= FRICTION;
+      b.vy *= FRICTION;
+      if (Math.abs(b.vx) < SLEEP_EPS) b.vx = 0;
+      if (Math.abs(b.vy) < SLEEP_EPS) b.vy = 0;
+      b.vx = Math.max(-MAX_SPEED, Math.min(MAX_SPEED, b.vx));
+      b.vy = Math.max(-MAX_SPEED, Math.min(MAX_SPEED, b.vy));
+
+      b.x += b.vx;
+      b.y += b.vy;
+
+      const maxX = Math.max(0, innerW - b.w);
+      const maxY = Math.max(0, innerH - b.h);
+      if (b.x < 0) { b.x = 0; b.vx = -b.vx * RESTITUTION; }
+      else if (b.x > maxX) { b.x = maxX; b.vx = -b.vx * RESTITUTION; }
+      if (b.y < 0) { b.y = 0; b.vy = -b.vy * RESTITUTION; }
+      else if (b.y > maxY) { b.y = maxY; b.vy = -b.vy * RESTITUTION; }
+
+      if (b.vx !== 0 || b.vy !== 0) awake = true;
+      paint(i);
+    });
+
+    if (awake) {
+      rafRef.current = requestAnimationFrame(step);
+    } else {
+      runningRef.current = false;
+      rafRef.current = null;
+    }
+  }, [paint]);
+
+  const startLoop = useCallback(() => {
+    if (!runningRef.current) {
+      runningRef.current = true;
+      rafRef.current = requestAnimationFrame(step);
+    }
+  }, [step]);
+
+  // Measure pill + panel dimensions; keep bounds fresh on resize
+  useEffect(() => {
+    reducedRef.current = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    const measure = () => {
+      const panel = panelRef.current;
+      if (!panel) return;
+      boundsRef.current = { w: panel.clientWidth, h: panel.clientHeight };
+      pillRefs.current.forEach((el, i) => {
+        const b = bodiesRef.current[i];
+        if (el && b) {
+          const r = el.getBoundingClientRect();
+          b.w = r.width;
+          b.h = r.height;
+          // clamp back in-bounds after a resize
+          b.x = Math.max(0, Math.min(b.x, boundsRef.current.w - b.w));
+          b.y = Math.max(0, Math.min(b.y, boundsRef.current.h - b.h));
+          paint(i);
+        }
+      });
+    };
+
+    measure();
+    const ro = new ResizeObserver(measure);
+    if (panelRef.current) ro.observe(panelRef.current);
+
+    return () => {
+      ro.disconnect();
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      runningRef.current = false;
+    };
+  }, [paint]);
+
+  const handlePointerDown = useCallback(
+    (i: number) => (e: React.PointerEvent<HTMLDivElement>) => {
+      const el = pillRefs.current[i];
+      const panel = panelRef.current;
+      const b = bodiesRef.current[i];
+      if (!el || !panel || !b) return;
+
+      el.setPointerCapture(e.pointerId);
+      const panelRect = panel.getBoundingClientRect();
+      const localX = e.clientX - panelRect.left;
+      const localY = e.clientY - panelRect.top;
+
+      b.vx = 0;
+      b.vy = 0;
+      b.dragging = true;
+      dragRef.current = {
+        id: i,
+        pointerId: e.pointerId,
+        offsetX: localX - b.x,
+        offsetY: localY - b.y,
+        startX: e.clientX,
+        startY: e.clientY,
+        lastX: e.clientX,
+        lastY: e.clientY,
+        lastT: e.timeStamp,
+        moved: false,
+      };
+      setDraggingId(i);
+      startLoop();
+    },
+    [startLoop]
+  );
+
+  const handlePointerMove = useCallback((e: PointerEvent) => {
+    const d = dragRef.current;
+    if (!d || e.pointerId !== d.pointerId) return;
+    const panel = panelRef.current;
+    const b = bodiesRef.current[d.id];
+    if (!panel || !b) return;
+
+    const panelRect = panel.getBoundingClientRect();
+    const maxX = Math.max(0, boundsRef.current.w - b.w);
+    const maxY = Math.max(0, boundsRef.current.h - b.h);
+    b.x = Math.max(0, Math.min(e.clientX - panelRect.left - d.offsetX, maxX));
+    b.y = Math.max(0, Math.min(e.clientY - panelRect.top - d.offsetY, maxY));
+
+    const dt = Math.max(1, e.timeStamp - d.lastT);
+    const nvx = ((e.clientX - d.lastX) / dt) * 16;
+    const nvy = ((e.clientY - d.lastY) / dt) * 16;
+    b.vx = 0.7 * b.vx + 0.3 * nvx;
+    b.vy = 0.7 * b.vy + 0.3 * nvy;
+    d.lastX = e.clientX;
+    d.lastY = e.clientY;
+    d.lastT = e.timeStamp;
+
+    if (
+      !d.moved &&
+      Math.hypot(e.clientX - d.startX, e.clientY - d.startY) > DRAG_THRESHOLD
+    ) {
+      d.moved = true;
+      setActive((prev) => {
+        if (prev.has(d.id)) return prev;
+        const next = new Set(prev);
+        next.add(d.id);
+        return next;
+      });
+    }
+  }, []);
+
+  const handlePointerUp = useCallback((e: PointerEvent) => {
+    const d = dragRef.current;
+    if (!d || e.pointerId !== d.pointerId) return;
+    const b = bodiesRef.current[d.id];
+    if (b) {
+      b.dragging = false;
+      if (reducedRef.current) {
+        b.vx = 0;
+        b.vy = 0;
+      }
+    }
+    if (!d.moved) {
+      setActive((prev) => {
+        const next = new Set(prev);
+        if (next.has(d.id)) next.delete(d.id);
+        else next.add(d.id);
+        return next;
+      });
+    }
+    dragRef.current = null;
+    setDraggingId(null);
+    startLoop();
+  }, [startLoop]);
+
+  // Window listeners for drag move/up (added once, gated by dragRef)
+  useEffect(() => {
+    window.addEventListener("pointermove", handlePointerMove);
+    window.addEventListener("pointerup", handlePointerUp);
+    window.addEventListener("pointercancel", handlePointerUp);
+    return () => {
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerup", handlePointerUp);
+      window.removeEventListener("pointercancel", handlePointerUp);
+    };
+  }, [handlePointerMove, handlePointerUp]);
+
   return (
-    <div className="max-w-sm w-full">
-      <div className="flex flex-wrap gap-2 mb-6">
-        {tags.map((t, i) => (
-          <span
-            key={t}
-            className={`text-xs rounded-full px-3 py-1.5 border transition-colors ${
-              i === 0
-                ? "bg-protege-dark text-protege-cream border-protege-dark"
-                : "border-protege-dark/20 text-protege-dark/60 hover:border-protege-dark/50"
-            }`}
-          >
-            {t}
-          </span>
-        ))}
-      </div>
-      <div className="grid grid-cols-2 gap-3">
-        {[...Array(4)].map((_, i) => (
+    <div
+      ref={panelRef}
+      className="relative w-full md:w-[380px] h-[420px] rounded-2xl bg-protege-dark overflow-hidden p-4 select-none"
+    >
+      <span className="absolute top-4 left-4 text-xs text-white/40 tracking-wide z-0">
+        Explore by discipline
+      </span>
+
+      {DISCIPLINE_SEEDS.map((s, i) => {
+        const isActive = active.has(i);
+        return (
           <div
-            key={i}
-            className="aspect-[4/3] rounded-xl border border-protege-dark/10 bg-protege-cream/60 flex items-center justify-center"
+            key={s.label}
+            ref={(el) => { pillRefs.current[i] = el; }}
+            onPointerDown={handlePointerDown(i)}
+            className="absolute top-0 left-0 touch-none will-change-transform cursor-grab active:cursor-grabbing"
+            style={{
+              transform: `translate3d(${s.x}px, ${s.y}px, 0)`,
+              zIndex: draggingId === i ? 50 : 10,
+            }}
           >
-            <span className="text-[10px] text-protege-dark/25 text-center px-2">
-              mentors<br />appear here
-            </span>
+            <div
+              className={`rounded-full border px-3.5 py-1.5 text-xs whitespace-nowrap transition-[filter,box-shadow,background-color,color] duration-150 hover:brightness-110 hover:shadow-lg ${
+                isActive
+                  ? "bg-protege-orange text-white border-transparent"
+                  : "border-white/20 text-white/70 bg-white/[0.03]"
+              }`}
+              style={{ transform: `rotate(${s.rot}deg)` }}
+            >
+              {s.label}
+            </div>
           </div>
-        ))}
-      </div>
+        );
+      })}
     </div>
   );
 }
@@ -621,7 +892,7 @@ export default function Home() {
         eyebrow="DISCOVERY"
         headline="Find someone worth learning from."
         body="Every mentor here posted an offering on purpose. Defined scope, set price, open for requests. Browse by discipline, find someone whose work you respect, and reach out without the awkward part."
-        visual={<BrowseUI />}
+        visual={<DisciplinePanel />}
         flip
       />
       <Pillar
