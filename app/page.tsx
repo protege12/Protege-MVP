@@ -383,25 +383,24 @@ interface DisciplineSeed {
   x: number;
   y: number;
   rot: number;
-  active?: boolean;
 }
 
-// Hand-placed scatter inside a ~348×388 inner area (deterministic → hydration-safe).
+// Scattered across a wider (~520px) and taller (~380px) play area.
 const DISCIPLINE_SEEDS: DisciplineSeed[] = [
-  { label: "Graphic Design",   x: 14,  y: 30,  rot: -4, active: true },
-  { label: "Photography",      x: 188, y: 18,  rot:  3, active: true },
-  { label: "Filmmaking",       x: 96,  y: 86,  rot:  5 },
-  { label: "Illustration",     x: 232, y: 92,  rot: -3 },
-  { label: "Music Production",  x: 28,  y: 132, rot:  2 },
-  { label: "Writing",          x: 210, y: 158, rot: -6 },
-  { label: "Brand Identity",   x: 70,  y: 196, rot:  4 },
-  { label: "UI/UX Design",     x: 226, y: 218, rot:  6 },
-  { label: "Animation",        x: 18,  y: 232, rot: -5 },
-  { label: "Editorial",        x: 150, y: 256, rot:  3 },
-  { label: "Motion Design",    x: 30,  y: 300, rot: -2 },
-  { label: "Portrait",         x: 240, y: 296, rot:  5 },
-  { label: "Ceramics",         x: 128, y: 330, rot: -4 },
-  { label: "Fashion",          x: 16,  y: 352, rot:  4 },
+  { label: "Graphic Design",    x: 20,  y: 18,  rot: -4 },
+  { label: "Photography",       x: 240, y: 10,  rot:  3 },
+  { label: "Filmmaking",        x: 380, y: 30,  rot:  5 },
+  { label: "Illustration",      x: 110, y: 74,  rot: -3 },
+  { label: "Music Production",  x: 295, y: 78,  rot:  2 },
+  { label: "Writing",           x: 18,  y: 126, rot: -5 },
+  { label: "Brand Identity",    x: 195, y: 130, rot:  4 },
+  { label: "UI/UX Design",      x: 360, y: 118, rot: -2 },
+  { label: "Animation",         x: 60,  y: 186, rot:  6 },
+  { label: "Editorial",         x: 270, y: 192, rot: -4 },
+  { label: "Motion Design",     x: 20,  y: 248, rot:  3 },
+  { label: "Portrait",          x: 380, y: 240, rot: -6 },
+  { label: "Ceramics",          x: 160, y: 290, rot:  4 },
+  { label: "Fashion",           x: 310, y: 308, rot: -3 },
 ];
 
 interface Body {
@@ -413,23 +412,31 @@ interface Body {
   h: number;
   rot: number;
   dragging: boolean;
+  slotted: boolean;
 }
 
 const FRICTION = 0.94;
 const RESTITUTION = 0.65;
+const PILL_RESTITUTION = 0.7;
 const SLEEP_EPS = 0.05;
 const MAX_SPEED = 40;
 const DRAG_THRESHOLD = 5;
 
 function DisciplinePanel() {
-  const panelRef = useRef<HTMLDivElement | null>(null);
+  // Physics play area ref (below slot bar)
+  const playRef = useRef<HTMLDivElement | null>(null);
+  // Outer panel ref (for slot position measurement)
+  const outerRef = useRef<HTMLDivElement | null>(null);
   const pillRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const slotRef = useRef<HTMLDivElement | null>(null);
+  const slotRectRef = useRef({ x: 0, y: 0, w: 140, h: 34 });
   const bodiesRef = useRef<Body[]>(
     DISCIPLINE_SEEDS.map((s) => ({
-      x: s.x, y: s.y, vx: 0, vy: 0, w: 120, h: 34, rot: s.rot, dragging: false,
+      x: s.x, y: s.y, vx: 0, vy: 0, w: 130, h: 34, rot: s.rot,
+      dragging: false, slotted: false,
     }))
   );
-  const boundsRef = useRef({ w: 348, h: 388 });
+  const boundsRef = useRef({ w: 520, h: 380 });
   const rafRef = useRef<number | null>(null);
   const runningRef = useRef(false);
   const reducedRef = useRef(false);
@@ -446,81 +453,166 @@ function DisciplinePanel() {
     moved: boolean;
   } | null>(null);
 
-  const [active, setActive] = useState<Set<number>>(
-    () => new Set(DISCIPLINE_SEEDS.flatMap((s, i) => (s.active ? [i] : [])))
-  );
+  const [slottedId, setSlottedId] = useState<number | null>(null);
   const [draggingId, setDraggingId] = useState<number | null>(null);
+  // track slottedId in a ref for use inside callbacks without stale closure
+  const slottedIdRef = useRef<number | null>(null);
+  useEffect(() => { slottedIdRef.current = slottedId; }, [slottedId]);
 
-  // Write a body's transform to its DOM node
   const paint = useCallback((i: number) => {
     const el = pillRefs.current[i];
     const b = bodiesRef.current[i];
     if (el && b) el.style.transform = `translate3d(${b.x}px, ${b.y}px, 0)`;
   }, []);
 
-  const step = useCallback(() => {
-    const { w: innerW, h: innerH } = boundsRef.current;
-    let awake = false;
-
-    bodiesRef.current.forEach((b, i) => {
-      if (b.dragging) {
-        awake = true;
-        paint(i);
-        return;
-      }
-      if (b.vx === 0 && b.vy === 0) return;
-
-      b.vx *= FRICTION;
-      b.vy *= FRICTION;
-      if (Math.abs(b.vx) < SLEEP_EPS) b.vx = 0;
-      if (Math.abs(b.vy) < SLEEP_EPS) b.vy = 0;
-      b.vx = Math.max(-MAX_SPEED, Math.min(MAX_SPEED, b.vx));
-      b.vy = Math.max(-MAX_SPEED, Math.min(MAX_SPEED, b.vy));
-
-      b.x += b.vx;
-      b.y += b.vy;
-
-      const maxX = Math.max(0, innerW - b.w);
-      const maxY = Math.max(0, innerH - b.h);
-      if (b.x < 0) { b.x = 0; b.vx = -b.vx * RESTITUTION; }
-      else if (b.x > maxX) { b.x = maxX; b.vx = -b.vx * RESTITUTION; }
-      if (b.y < 0) { b.y = 0; b.vy = -b.vy * RESTITUTION; }
-      else if (b.y > maxY) { b.y = maxY; b.vy = -b.vy * RESTITUTION; }
-
-      if (b.vx !== 0 || b.vy !== 0) awake = true;
-      paint(i);
-    });
-
-    if (awake) {
-      rafRef.current = requestAnimationFrame(step);
-    } else {
-      runningRef.current = false;
-      rafRef.current = null;
-    }
-  }, [paint]);
-
   const startLoop = useCallback(() => {
     if (!runningRef.current) {
       runningRef.current = true;
-      rafRef.current = requestAnimationFrame(step);
-    }
-  }, [step]);
+      const loop = () => {
+        const { w: innerW, h: innerH } = boundsRef.current;
+        let awake = false;
+        const bodies = bodiesRef.current;
 
-  // Measure pill + panel dimensions; keep bounds fresh on resize
+        // Integration pass
+        bodies.forEach((b, i) => {
+          if (b.dragging || b.slotted) { if (b.dragging) awake = true; return; }
+          if (b.vx === 0 && b.vy === 0) return;
+
+          b.vx *= FRICTION;
+          b.vy *= FRICTION;
+          if (Math.abs(b.vx) < SLEEP_EPS) b.vx = 0;
+          if (Math.abs(b.vy) < SLEEP_EPS) b.vy = 0;
+          b.vx = Math.max(-MAX_SPEED, Math.min(MAX_SPEED, b.vx));
+          b.vy = Math.max(-MAX_SPEED, Math.min(MAX_SPEED, b.vy));
+
+          b.x += b.vx;
+          b.y += b.vy;
+
+          const maxX = Math.max(0, innerW - b.w);
+          const maxY = Math.max(0, innerH - b.h);
+          if (b.x < 0) { b.x = 0; b.vx = -b.vx * RESTITUTION; }
+          else if (b.x > maxX) { b.x = maxX; b.vx = -b.vx * RESTITUTION; }
+          if (b.y < 0) { b.y = 0; b.vy = -b.vy * RESTITUTION; }
+          else if (b.y > maxY) { b.y = maxY; b.vy = -b.vy * RESTITUTION; }
+
+          if (b.vx !== 0 || b.vy !== 0) awake = true;
+          paint(i);
+        });
+
+        // Pill-to-pill AABB collision (O(n²), n=14 → 91 pairs, trivially cheap)
+        for (let i = 0; i < bodies.length; i++) {
+          const a = bodies[i];
+          if (a.slotted) continue;
+          for (let j = i + 1; j < bodies.length; j++) {
+            const b = bodies[j];
+            if (b.slotted) continue;
+
+            const cax = a.x + a.w / 2, cay = a.y + a.h / 2;
+            const cbx = b.x + b.w / 2, cby = b.y + b.h / 2;
+            const overlapX = (a.w + b.w) / 2 - Math.abs(cax - cbx);
+            const overlapY = (a.h + b.h) / 2 - Math.abs(cay - cby);
+
+            if (overlapX > 0 && overlapY > 0) {
+              if (overlapX < overlapY) {
+                const dir = cax < cbx ? -1 : 1;
+                a.x -= dir * overlapX / 2;
+                b.x += dir * overlapX / 2;
+                const tmpVx = a.vx;
+                a.vx = b.vx * PILL_RESTITUTION;
+                b.vx = tmpVx * PILL_RESTITUTION;
+              } else {
+                const dir = cay < cby ? -1 : 1;
+                a.y -= dir * overlapY / 2;
+                b.y += dir * overlapY / 2;
+                const tmpVy = a.vy;
+                a.vy = b.vy * PILL_RESTITUTION;
+                b.vy = tmpVy * PILL_RESTITUTION;
+              }
+              awake = true;
+              paint(i);
+              paint(j);
+            }
+          }
+        }
+
+        if (awake) {
+          rafRef.current = requestAnimationFrame(loop);
+        } else {
+          runningRef.current = false;
+          rafRef.current = null;
+        }
+      };
+      rafRef.current = requestAnimationFrame(loop);
+    }
+  }, [paint]);
+
+  // Eject the currently slotted pill back into the play area
+  const ejectSlotted = useCallback(() => {
+    const sid = slottedIdRef.current;
+    if (sid === null) return;
+    const b = bodiesRef.current[sid];
+    b.slotted = false;
+    b.vx = (Math.random() - 0.5) * 5;
+    b.vy = 2.5;
+    // clamp back in-bounds
+    const { w: iw, h: ih } = boundsRef.current;
+    b.x = Math.max(0, Math.min(b.x, iw - b.w));
+    b.y = Math.max(0, Math.min(b.y, ih - b.h));
+    setSlottedId(null);
+    startLoop();
+  }, [startLoop]);
+
+  // Slot a pill (called on drag-drop or click)
+  const slotPill = useCallback((i: number) => {
+    // eject any existing occupant
+    const sid = slottedIdRef.current;
+    if (sid !== null && sid !== i) {
+      const ejected = bodiesRef.current[sid];
+      ejected.slotted = false;
+      ejected.vx = (Math.random() - 0.5) * 5;
+      ejected.vy = 2.5;
+      const { w: iw, h: ih } = boundsRef.current;
+      ejected.x = Math.max(0, Math.min(ejected.x, iw - ejected.w));
+      ejected.y = Math.max(0, Math.min(ejected.y, ih - ejected.h));
+    }
+    const b = bodiesRef.current[i];
+    b.slotted = true;
+    b.vx = 0;
+    b.vy = 0;
+    b.dragging = false;
+    setSlottedId(i);
+    startLoop();
+  }, [startLoop]);
+
+  // Measure everything on mount + on resize
   useEffect(() => {
     reducedRef.current = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
     const measure = () => {
-      const panel = panelRef.current;
-      if (!panel) return;
-      boundsRef.current = { w: panel.clientWidth, h: panel.clientHeight };
+      const play = playRef.current;
+      const outer = outerRef.current;
+      const slot = slotRef.current;
+      if (!play) return;
+      boundsRef.current = { w: play.clientWidth, h: play.clientHeight };
+
+      // Measure slot position relative to play area
+      if (slot && outer) {
+        const slotR = slot.getBoundingClientRect();
+        const playR = play.getBoundingClientRect();
+        slotRectRef.current = {
+          x: slotR.left - playR.left,
+          y: slotR.top  - playR.top,
+          w: slotR.width,
+          h: slotR.height,
+        };
+      }
+
       pillRefs.current.forEach((el, i) => {
         const b = bodiesRef.current[i];
-        if (el && b) {
+        if (el && b && !b.slotted) {
           const r = el.getBoundingClientRect();
           b.w = r.width;
           b.h = r.height;
-          // clamp back in-bounds after a resize
           b.x = Math.max(0, Math.min(b.x, boundsRef.current.w - b.w));
           b.y = Math.max(0, Math.min(b.y, boundsRef.current.h - b.h));
           paint(i);
@@ -530,7 +622,7 @@ function DisciplinePanel() {
 
     measure();
     const ro = new ResizeObserver(measure);
-    if (panelRef.current) ro.observe(panelRef.current);
+    if (playRef.current) ro.observe(playRef.current);
 
     return () => {
       ro.disconnect();
@@ -542,14 +634,14 @@ function DisciplinePanel() {
   const handlePointerDown = useCallback(
     (i: number) => (e: React.PointerEvent<HTMLDivElement>) => {
       const el = pillRefs.current[i];
-      const panel = panelRef.current;
+      const play = playRef.current;
       const b = bodiesRef.current[i];
-      if (!el || !panel || !b) return;
+      if (!el || !play || !b) return;
 
       el.setPointerCapture(e.pointerId);
-      const panelRect = panel.getBoundingClientRect();
-      const localX = e.clientX - panelRect.left;
-      const localY = e.clientY - panelRect.top;
+      const playRect = play.getBoundingClientRect();
+      const localX = e.clientX - playRect.left;
+      const localY = e.clientY - playRect.top;
 
       b.vx = 0;
       b.vy = 0;
@@ -572,18 +664,56 @@ function DisciplinePanel() {
     [startLoop]
   );
 
+  // Slot bar pointerdown — pull the slotted pill out into the play area
+  const handleSlotPointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    const sid = slottedIdRef.current;
+    if (sid === null) return;
+    const b = bodiesRef.current[sid];
+    const play = playRef.current;
+    const el = pillRefs.current[sid];
+    if (!play || !el) return;
+
+    // Place the pill at top-centre of play area
+    const playW = boundsRef.current.w;
+    b.slotted = false;
+    b.x = Math.max(0, playW / 2 - b.w / 2);
+    b.y = 4;
+    b.vx = 0;
+    b.vy = 0;
+    b.dragging = true;
+    paint(sid);
+    setSlottedId(null);
+
+    el.setPointerCapture(e.pointerId);
+    const playRect = play.getBoundingClientRect();
+    dragRef.current = {
+      id: sid,
+      pointerId: e.pointerId,
+      offsetX: e.clientX - playRect.left - b.x,
+      offsetY: e.clientY - playRect.top  - b.y,
+      startX: e.clientX,
+      startY: e.clientY,
+      lastX: e.clientX,
+      lastY: e.clientY,
+      lastT: e.timeStamp,
+      moved: false,
+    };
+    setDraggingId(sid);
+    startLoop();
+  }, [paint, startLoop]);
+
   const handlePointerMove = useCallback((e: PointerEvent) => {
     const d = dragRef.current;
     if (!d || e.pointerId !== d.pointerId) return;
-    const panel = panelRef.current;
+    const play = playRef.current;
     const b = bodiesRef.current[d.id];
-    if (!panel || !b) return;
+    if (!play || !b) return;
 
-    const panelRect = panel.getBoundingClientRect();
+    const playRect = play.getBoundingClientRect();
     const maxX = Math.max(0, boundsRef.current.w - b.w);
     const maxY = Math.max(0, boundsRef.current.h - b.h);
-    b.x = Math.max(0, Math.min(e.clientX - panelRect.left - d.offsetX, maxX));
-    b.y = Math.max(0, Math.min(e.clientY - panelRect.top - d.offsetY, maxY));
+    b.x = Math.max(0, Math.min(e.clientX - playRect.left - d.offsetX, maxX));
+    b.y = Math.max(0, Math.min(e.clientY - playRect.top  - d.offsetY, maxY));
 
     const dt = Math.max(1, e.timeStamp - d.lastT);
     const nvx = ((e.clientX - d.lastX) / dt) * 16;
@@ -594,17 +724,8 @@ function DisciplinePanel() {
     d.lastY = e.clientY;
     d.lastT = e.timeStamp;
 
-    if (
-      !d.moved &&
-      Math.hypot(e.clientX - d.startX, e.clientY - d.startY) > DRAG_THRESHOLD
-    ) {
+    if (!d.moved && Math.hypot(e.clientX - d.startX, e.clientY - d.startY) > DRAG_THRESHOLD) {
       d.moved = true;
-      setActive((prev) => {
-        if (prev.has(d.id)) return prev;
-        const next = new Set(prev);
-        next.add(d.id);
-        return next;
-      });
     }
   }, []);
 
@@ -612,27 +733,60 @@ function DisciplinePanel() {
     const d = dragRef.current;
     if (!d || e.pointerId !== d.pointerId) return;
     const b = bodiesRef.current[d.id];
-    if (b) {
-      b.dragging = false;
-      if (reducedRef.current) {
-        b.vx = 0;
-        b.vy = 0;
-      }
-    }
-    if (!d.moved) {
-      setActive((prev) => {
-        const next = new Set(prev);
-        if (next.has(d.id)) next.delete(d.id);
-        else next.add(d.id);
-        return next;
-      });
-    }
     dragRef.current = null;
     setDraggingId(null);
-    startLoop();
-  }, [startLoop]);
 
-  // Window listeners for drag move/up (added once, gated by dragRef)
+    if (!b) return;
+
+    if (!d.moved) {
+      // Click: toggle slot
+      if (slottedIdRef.current === d.id) {
+        ejectSlotted();
+      } else {
+        b.dragging = false;
+        slotPill(d.id);
+      }
+      return;
+    }
+
+    // Drag: check if released over the slot zone
+    const sr = slotRectRef.current;
+    const pillCX = b.x + b.w / 2;
+    // pill is in play-area coords; slot rect is also play-area-local
+    // but the slot is physically ABOVE the play area (negative y) — check via raw client coords
+    const play = playRef.current;
+    const slot = slotRef.current;
+    let inSlot = false;
+    if (play && slot) {
+      const playR = play.getBoundingClientRect();
+      const slotR = slot.getBoundingClientRect();
+      // use the drag's last client position
+      inSlot = (
+        e.clientX >= slotR.left - 20 && e.clientX <= slotR.right + 20 &&
+        e.clientY >= slotR.top  - 20 && e.clientY <= slotR.bottom + 20
+      );
+      // fallback: pill centre X overlaps slot horizontally and pill y is near top
+      if (!inSlot) {
+        const pillClientCX = playR.left + pillCX;
+        inSlot = (
+          pillClientCX >= slotR.left - 20 && pillClientCX <= slotR.right + 20 &&
+          b.y < 40
+        );
+      }
+    } else {
+      // fallback using slotRectRef (play-area-local, slot above play)
+      inSlot = pillCX > sr.x - 20 && pillCX < sr.x + sr.w + 20 && b.y < 30;
+    }
+
+    if (inSlot) {
+      slotPill(d.id);
+    } else {
+      b.dragging = false;
+      if (reducedRef.current) { b.vx = 0; b.vy = 0; }
+      startLoop();
+    }
+  }, [ejectSlotted, slotPill, startLoop]);
+
   useEffect(() => {
     window.addEventListener("pointermove", handlePointerMove);
     window.addEventListener("pointerup", handlePointerUp);
@@ -646,39 +800,64 @@ function DisciplinePanel() {
 
   return (
     <div
-      ref={panelRef}
-      className="relative w-full md:w-[380px] h-[420px] rounded-2xl bg-protege-dark overflow-hidden p-4 select-none"
+      ref={outerRef}
+      className="relative w-full max-w-2xl rounded-2xl bg-white border border-black/[0.06] shadow-md overflow-hidden select-none"
     >
-      <span className="absolute top-4 left-4 text-xs text-white/40 tracking-wide z-0">
-        Explore by discipline
-      </span>
-
-      {DISCIPLINE_SEEDS.map((s, i) => {
-        const isActive = active.has(i);
-        return (
+      {/* Slot bar */}
+      <div className="px-5 pt-5 pb-4">
+        <div className="flex items-center gap-3 bg-black/[0.03] rounded-xl px-5 py-3 shadow-inner">
+          <span className="text-sm text-protege-dark/70 whitespace-nowrap">
+            I want a mentor in
+          </span>
           <div
-            key={s.label}
-            ref={(el) => { pillRefs.current[i] = el; }}
-            onPointerDown={handlePointerDown(i)}
-            className="absolute top-0 left-0 touch-none will-change-transform cursor-grab active:cursor-grabbing"
-            style={{
-              transform: `translate3d(${s.x}px, ${s.y}px, 0)`,
-              zIndex: draggingId === i ? 50 : 10,
-            }}
+            ref={slotRef}
+            onPointerDown={slottedId !== null ? handleSlotPointerDown : undefined}
+            className={`rounded-full border min-w-[140px] h-9 flex items-center justify-center text-sm transition-colors duration-200 select-none ${
+              slottedId !== null
+                ? "bg-protege-orange border-transparent text-white font-medium cursor-grab active:cursor-grabbing"
+                : "border-dashed border-black/25 text-black/30 italic"
+            }`}
           >
-            <div
-              className={`rounded-full border px-3.5 py-1.5 text-xs whitespace-nowrap transition-[filter,box-shadow,background-color,color] duration-150 hover:brightness-110 hover:shadow-lg ${
-                isActive
-                  ? "bg-protege-orange text-white border-transparent"
-                  : "border-white/20 text-white/70 bg-white/[0.03]"
-              }`}
-              style={{ transform: `rotate(${s.rot}deg)` }}
-            >
-              {s.label}
-            </div>
+            {slottedId !== null ? DISCIPLINE_SEEDS[slottedId].label : "drag one here"}
           </div>
-        );
-      })}
+        </div>
+      </div>
+
+      {/* Play area */}
+      <div
+        ref={playRef}
+        className="relative overflow-hidden mx-4 mb-4 rounded-xl"
+        style={{ height: 360 }}
+      >
+        {DISCIPLINE_SEEDS.map((s, i) => {
+          const isSlotted = slottedId === i;
+          return (
+            <div
+              key={s.label}
+              ref={(el) => { pillRefs.current[i] = el; }}
+              onPointerDown={handlePointerDown(i)}
+              className="absolute top-0 left-0 touch-none will-change-transform cursor-grab active:cursor-grabbing"
+              style={{
+                transform: `translate3d(${s.x}px, ${s.y}px, 0)`,
+                zIndex: draggingId === i ? 50 : 10,
+                display: isSlotted ? "none" : undefined,
+              }}
+            >
+              <div
+                className="rounded-full border px-3.5 py-1.5 text-xs whitespace-nowrap transition-[box-shadow,transform,background-color,color,border-color] duration-150 hover:scale-105 hover:shadow-sm border-black/15 text-protege-dark/60 bg-transparent"
+                style={{ transform: `rotate(${s.rot}deg)` }}
+              >
+                {s.label}
+              </div>
+            </div>
+          );
+        })}
+
+        {/* Hint */}
+        <span className="absolute bottom-2 right-3 text-[10px] text-black/25 pointer-events-none select-none">
+          drag the pills
+        </span>
+      </div>
     </div>
   );
 }
