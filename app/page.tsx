@@ -476,7 +476,7 @@ function DisciplinePanel() {
 
         // Integration pass
         bodies.forEach((b, i) => {
-          if (b.dragging || b.slotted) { if (b.dragging) awake = true; return; }
+          if (b.dragging || b.slotted) { if (b.dragging) { awake = true; paint(i); } return; }
           if (b.vx === 0 && b.vy === 0) return;
 
           b.vx *= FRICTION;
