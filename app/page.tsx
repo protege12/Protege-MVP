@@ -451,6 +451,7 @@ function DisciplinePanel() {
     lastY: number;
     lastT: number;
     moved: boolean;
+    fromSlot?: boolean;
   } | null>(null);
 
   const [slottedId, setSlottedId] = useState<number | null>(null);
@@ -514,19 +515,30 @@ function DisciplinePanel() {
 
             if (overlapX > 0 && overlapY > 0) {
               if (overlapX < overlapY) {
-                const dir = cax < cbx ? -1 : 1;
-                a.x -= dir * overlapX / 2;
-                b.x += dir * overlapX / 2;
-                const tmpVx = a.vx;
-                a.vx = b.vx * PILL_RESTITUTION;
-                b.vx = tmpVx * PILL_RESTITUTION;
+                // separate along X (correct sign: push each pill away from the other)
+                const sign = cax < cbx ? 1 : -1;
+                const sep = overlapX / 2 + 0.5;
+                a.x -= sign * sep;
+                b.x += sign * sep;
+                // velocity response only when the pills are approaching
+                const rvx = b.vx - a.vx;
+                if (sign * rvx < 0) {
+                  const avg = (a.vx + b.vx) / 2;
+                  a.vx = avg - PILL_RESTITUTION * (a.vx - avg);
+                  b.vx = avg - PILL_RESTITUTION * (b.vx - avg);
+                }
               } else {
-                const dir = cay < cby ? -1 : 1;
-                a.y -= dir * overlapY / 2;
-                b.y += dir * overlapY / 2;
-                const tmpVy = a.vy;
-                a.vy = b.vy * PILL_RESTITUTION;
-                b.vy = tmpVy * PILL_RESTITUTION;
+                // separate along Y
+                const sign = cay < cby ? 1 : -1;
+                const sep = overlapY / 2 + 0.5;
+                a.y -= sign * sep;
+                b.y += sign * sep;
+                const rvy = b.vy - a.vy;
+                if (sign * rvy < 0) {
+                  const avg = (a.vy + b.vy) / 2;
+                  a.vy = avg - PILL_RESTITUTION * (a.vy - avg);
+                  b.vy = avg - PILL_RESTITUTION * (b.vy - avg);
+                }
               }
               awake = true;
               paint(i);
@@ -684,7 +696,8 @@ function DisciplinePanel() {
     paint(sid);
     setSlottedId(null);
 
-    el.setPointerCapture(e.pointerId);
+    // Capture on the visible slot chip — the pill el is display:none at this instant.
+    e.currentTarget.setPointerCapture(e.pointerId);
     const playRect = play.getBoundingClientRect();
     dragRef.current = {
       id: sid,
@@ -697,6 +710,7 @@ function DisciplinePanel() {
       lastY: e.clientY,
       lastT: e.timeStamp,
       moved: false,
+      fromSlot: true,
     };
     setDraggingId(sid);
     startLoop();
@@ -739,8 +753,14 @@ function DisciplinePanel() {
     if (!b) return;
 
     if (!d.moved) {
-      // Click: toggle slot
-      if (slottedIdRef.current === d.id) {
+      if (d.fromSlot) {
+        // Clicked the slotted pill → launch it downward out of the slot into the sim
+        b.dragging = false;
+        b.slotted = false;
+        b.vx = (Math.random() - 0.5) * 4;
+        b.vy = reducedRef.current ? 4 : 10;
+        startLoop();
+      } else if (slottedIdRef.current === d.id) {
         ejectSlotted();
       } else {
         b.dragging = false;
